@@ -97,28 +97,51 @@ def index():
 
 
 
+
+
 @app.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
     hashed_password = generate_password_hash(data['password'])
 
+    existing_admin = Admin.query.filter_by(username=data['username']).first()
+    existing_user = User.query.filter_by(username=data['username']).first()
+
+    if existing_admin or existing_user:
+        return jsonify({"error": "username_taken", "message": "Username already taken!"}), 409
+
+    existing_email_admin = Admin.query.filter_by(email=data['email']).first()
+    existing_email_user = User.query.filter_by(email=data['email']).first()
+
+    if existing_email_admin or existing_email_user:
+        return jsonify({"error": "email_taken", "message": "Email already in use!"}), 409
+
     if data.get('role') == 'admin':
-        existing_admin = Admin.query.filter_by(username=data['username']).first()
-        if existing_admin:
-            return jsonify({"error": "username_taken", "message": "Username already taken!"}), 409
         new_admin = Admin(username=data['username'], password=hashed_password, email=data['email'])
         db.session.add(new_admin)
         db.session.commit()
         return redirect(url_for('login_admin')), 201
     else:
-        existing_user = User.query.filter_by(username=data['username']).first()
-        if existing_user:
-            return jsonify({"error": "username_taken", "message": "Username already taken!"}), 409
         new_user = User(username=data['username'], password=hashed_password, email=data['email'])
         db.session.add(new_user)
         db.session.commit()
         return redirect(url_for('login_user')), 201
 
+@app.route('/api/users/me', methods=['GET'])
+@jwt_required
+def get_user_details():
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+
+    if not user:
+        return jsonify({"message": "User not found!"}), 404
+
+    return jsonify({
+        "user_id": user.id,
+        "name": user.username,
+        "email": user.email,
+        "role": "customer"
+    }), 200
 
 @app.route('/login_admin', methods=['POST'])
 def login_admin():
@@ -130,17 +153,27 @@ def login_admin():
     if not admin or not check_password_hash(admin.password, data['password']):
         return jsonify({"message": "Invalid credentials!"}), 401
 
-    access_token = create_access_token(identity=admin.id, additional_claims={"role": "admin"})
-    refresh_token = create_refresh_token(identity=admin.id)
-
-    return jsonify({
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "isAuthenticated": True,
-        "user_id": admin.id,
-        "name": admin.username,
-        "role": "admin"
-    }), 200
+    # Create JWT tokens
+    try:
+        access_token = create_access_token(identity=admin.id, user_claims={"role": "admin"})
+        refresh_token = create_refresh_token(identity=admin.id)
+        
+        # Make sure tokens are in the correct JWT format
+        if '.' not in access_token or '.' not in refresh_token:
+            raise ValueError("Token does not have enough segments")
+        
+        return jsonify({
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "isAuthenticated": True,
+            "user_id": admin.id,
+            "name": admin.username,
+            "role": "admin"
+        }), 200
+    except ValueError as e:
+        # Log specific error for debugging
+        app.logger.error(f"Error in token generation: {str(e)}")
+        return jsonify({"message": "Error generating tokens"}), 500
 
 
 @app.route('/login_user', methods=['POST'])
@@ -150,21 +183,30 @@ def login_user():
         return jsonify({"message": "Incomplete login data!"}), 400
 
     user = User.query.filter_by(email=data['email']).first()
-
     if not user or not check_password_hash(user.password, data['password']):
         return jsonify({"message": "Invalid credentials!"}), 401
 
-    access_token = create_access_token(identity=user.id, user_claims={"role": "user"})
-    refresh_token = create_refresh_token(identity=user.id)
-
-    return jsonify({
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "isAuthenticated": True,
-        "user_id": user.id,
-        "name": user.username,
-        "role": "customer"
-    }), 200
+    # Create JWT tokens
+    try:
+        access_token = create_access_token(identity=user.id, user_claims={"role": "user"})
+        refresh_token = create_refresh_token(identity=user.id)
+        
+        # Make sure tokens are in the correct JWT format
+        if '.' not in access_token or '.' not in refresh_token:
+            raise ValueError("Token does not have enough segments")
+        
+        return jsonify({
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "isAuthenticated": True,
+            "user_id": user.id,
+            "name": user.username,
+            "role": "customer"
+        }), 200
+    except ValueError as e:
+        # Log specific error for debugging
+        app.logger.error(f"Error in token generation for user: {str(e)}")
+        return jsonify({"message": "Error generating tokens"}), 500
 
 
 
@@ -172,13 +214,14 @@ def login_user():
 @app.route('/token/refresh', methods=['POST'])
 @jwt_required
 
+
 def refresh():
     current_user = get_jwt_identity()
     access_token = create_access_token(identity=current_user)
     return jsonify({"access_token": access_token}), 200
 
 
-@app.route('/meal-options', methods=['GET'])
+@app.route('/meals', methods=['GET'])
 @jwt_required
 def get_meal_options():
     meal_options = Meal.query.all()
@@ -198,7 +241,7 @@ def get_meal_options():
 
     return jsonify({"meal_options": meal_options_list})
 
-@app.route('/meal-options', methods=['POST'])
+@app.route('/meals', methods=['POST'])
 @jwt_required
 def create_meal_option():
     current_user = get_jwt_identity()
@@ -229,7 +272,7 @@ def create_meal_option():
     db.session.commit()
     return jsonify({"message": "Meal added successfully"})
 
-@app.route('/meal-options/<int:meal_option_id>', methods=['PUT'])
+@app.route('/meals/<int:meal_option_id>', methods=['PUT'])
 @jwt_required
 def update_meal_option(meal_option_id):
     current_user = get_jwt_identity()
@@ -250,7 +293,7 @@ def update_meal_option(meal_option_id):
     else:
         return jsonify({"message": "Meal option not found"}), 404
 
-@app.route('/meal-options/<int:meal_option_id>', methods=['DELETE'])
+@app.route('/meals/<int:meal_option_id>', methods=['DELETE'])
 @jwt_required
 def delete_meal_option(meal_option_id):
     current_user = get_jwt_identity()

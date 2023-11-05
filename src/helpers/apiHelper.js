@@ -1,5 +1,6 @@
 // src/helpers/apiHelper.js
-import axios from 'axios';
+import axiosInstance from '../helpers/axiosConfig';
+
 
 const API_BASE_URL = 'http://localhost:5000'; // Replace with your actual Flask API base URL
 
@@ -47,7 +48,7 @@ export const fetchMenu = async () => {
   }
 };
 
-export const catererSetMenu = async (menuData, token) => {
+export const adminSetMenu = async (menuData, token) => {
   try {
     const response = await getAxiosInstance(token).post('/menu', menuData);
     return response.data;
@@ -66,7 +67,7 @@ export const fetchMealDetails = async (mealId) => {
   }
 };
 
-export const catererAddMeal = async (mealData, token) => {
+export const adminAddMeal = async (mealData, token) => {
   try {
     const response = await getAxiosInstance(token).post('/meals', mealData);
     return response.data;
@@ -75,7 +76,7 @@ export const catererAddMeal = async (mealData, token) => {
   }
 };
 
-export const catererUpdateMeal = async (mealId, mealData, token) => {
+export const adminUpdateMeal = async (mealId, mealData, token) => {
   try {
     const response = await getAxiosInstance(token).put(`/meals/${mealId}`, mealData);
     return response.data;
@@ -84,7 +85,7 @@ export const catererUpdateMeal = async (mealId, mealData, token) => {
   }
 };
 
-export const catererDeleteMeal = async (mealId, token) => {
+export const adminDeleteMeal = async (mealId, token) => {
   try {
     const response = await getAxiosInstance(token).delete(`/meals/${mealId}`);
     return response.data;
@@ -112,7 +113,7 @@ export const fetchOrderHistory = async (token) => {
   }
 };
 
-export const catererFetchOrders = async (token) => {
+export const adminFetchOrders = async (token) => {
   try {
     const response = await getAxiosInstance(token).get('/orders');
     return response.data;

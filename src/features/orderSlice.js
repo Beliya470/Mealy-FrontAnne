@@ -1,13 +1,14 @@
 // features/orderSlice.js
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axiosInstance from '../helpers/axiosConfig';
+
 
 // Async thunk for placing a new order
 export const placeOrder = createAsyncThunk(
   'orders/placeOrder',
   async (orderData) => {
-    const response = await axios.post('/api/orders', orderData);
+    const response = await axiosInstance.post('/api/orders', orderData);
     return response.data;
   }
 );

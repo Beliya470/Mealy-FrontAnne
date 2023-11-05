@@ -1,19 +1,23 @@
-
-
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import axiosInstance from '../helpers/axiosConfig.js';
+
+import { jwtDecode } from 'jwt-decode';
+
 
 const MealList = () => {
   const [meals, setMeals] = useState([]);
-  const [formData, setFormData] = useState({ name: '', description: '', price: '', image_url: '' });
+  const [formData, setFormData] = useState({ name: '', description: '', price: '', image_url: '', admin_id: '' });
   const [error, setError] = useState(null);
 
   const fetchMeals = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      console.log(token)
+      if(token) {
+        const decodedToken = jwtDecode(token); // Decode the token to get the payload
+        setFormData(formData => ({ ...formData, admin_id: decodedToken.admin_id })); // Set the admin_id in the formData
+      }
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.get('http://localhost:5000/meals', config);
+      const response = await axiosInstance.get('http://localhost:5000/meals', config);
       setMeals(response.data.meals);
     } catch (error) {
       setError("Error fetching meals");
@@ -23,17 +27,14 @@ const MealList = () => {
   const addMeal = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      
-      
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axios.post('/meals', formData, config);
+      const response = await axiosInstance.post('/meals', formData, config);
       alert(response.data.message);
       fetchMeals();
     } catch (error) {
       setError("Error adding meal");
     }
   };
- 
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -46,6 +47,7 @@ const MealList = () => {
 
   useEffect(() => {
     fetchMeals();
+    // This will run once upon component mounting
   }, []);
 
   return (
@@ -67,6 +69,10 @@ const MealList = () => {
         <div>
           <label>Image URL: </label>
           <input type="text" name="image_url" onChange={handleChange} />
+        </div>
+        <div>
+          <label>Admin ID: </label>
+          <input type="text" name="admin_id" onChange={handleChange} />
         </div>
         <button type="submit">Add Meal</button>
       </form>

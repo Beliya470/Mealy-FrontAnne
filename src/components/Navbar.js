@@ -29,7 +29,7 @@ const Navbar = () => {
     </ul>
   );
 
-  // Links specific to admin/caterer role
+  // Links specific to admin role
   const adminLinks = (
     <ul>
       <li>

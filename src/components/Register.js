@@ -51,12 +51,14 @@ const Register = () => {
     }
 
     const newUser = { username, email, password, role };
-    dispatch(registerUser(newUser));
-  };
+    // Integrated the dispatch call with history and setSuccessMessage as per the provided snippet
+    dispatch(registerUser(newUser, history, setSuccessMessage));
+};
 
-  const handleLoginRedirect = (role) => {
-    role === 'user' ? history.push('/login_user') : history.push('/login_admin');
-  };
+const handleLoginRedirect = (role) => {
+  role === 'user' ? history.push('/login_user') : history.push('/login_admin');
+};
+
 
   return (
     <div className="register-container">
@@ -112,7 +114,7 @@ const Register = () => {
             Role:
             <select value={role} onChange={(e) => setRole(e.target.value)} className="register-form-input">
               <option value="user">User</option>
-              <option value="admin">Admin/Caterer</option>
+              <option value="admin">Admin</option>
             </select>
           </label>
         </div>

@@ -1,4 +1,6 @@
-import axios from 'axios'; // Assuming you're using axios for API calls.
+import axiosInstance from '../../helpers/axiosConfig.js';
+
+
 
 // Action types
 export const FETCH_ORDERS_BEGIN = 'FETCH_ORDERS_BEGIN';
@@ -29,7 +31,7 @@ export const fetchOrders = () => {
         dispatch(fetchOrdersBegin());
 
         // Here, replace with your actual API endpoint
-        return axios.get('http://localhost:5000/orders')
+        return axiosInstance.get('http://localhost:5000/orders')
             .then(response => {
                 dispatch(fetchOrdersSuccess(response.data));
             })

@@ -1,7 +1,8 @@
 // features/menuSlice.js
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axiosInstance from '../helpers/axiosConfig';
+
 
 // Async thunk for fetching daily menu
 export const fetchDailyMenu = createAsyncThunk(
@@ -16,7 +17,7 @@ export const fetchDailyMenu = createAsyncThunk(
 export const setDailyMenu = createAsyncThunk(
   'menu/setDailyMenu',
   async (mealsForToday) => {
-    const response = await axios.post('/api/menus/daily', mealsForToday);
+    const response = await axiosInstance.post('/api/menus/daily', mealsForToday);
     return response.data;
   }
 );

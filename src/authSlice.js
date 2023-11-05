@@ -1,18 +1,38 @@
 // src/features/auth/authSlice.js
 
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import apiClient from '../../api/client'; // Assuming you have a setup to interact with your Flask API
+import apiClient from '../../api/client';
 
-// Thunk for performing asynchronous logic, e.g., API calls
+export const loginAdmin = createAsyncThunk(
+  'auth/loginAdmin',
+  async (adminCredentials, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.post('/login_admin', adminCredentials);
+      const { access_token } = response.data;
+      if (!access_token || access_token.split('.').length !== 3) {
+        throw new Error('Access token received from the server is not valid JWT.');
+      }
+      localStorage.setItem('token', access_token);
+      return response.data; // This should include the admin info and tokens
+    } catch (err) {
+      return rejectWithValue(err.response.data.message || 'An error occurred during admin login.');
+    }
+  }
+);
+
 export const loginUser = createAsyncThunk(
   'auth/loginUser',
-  async (loginCredentials, { rejectWithValue }) => {
+  async (userCredentials, { rejectWithValue }) => {
     try {
-      const response = await apiClient.post('/auth/login', loginCredentials);
-      return response.data; // return user info and token
+      const response = await apiClient.post('/login_user', userCredentials);
+      const { access_token } = response.data;
+      if (!access_token || access_token.split('.').length !== 3) {
+        throw new Error('Access token received from the server is not valid JWT.');
+      }
+      localStorage.setItem('token', access_token);
+      return response.data; // This should include the user info and tokens
     } catch (err) {
-      // Handle errors with proper error message
-      return rejectWithValue(err.response.data);
+      return rejectWithValue(err.response.data.message || 'An error occurred during user login.');
     }
   }
 );
@@ -30,6 +50,17 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(loginAdmin.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(loginAdmin.fulfilled, (state, action) => {
+        state.loading = false;
+        state.user = action.payload; // save admin data
+      })
+      .addCase(loginAdmin.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload; // save error message
+      })
       .addCase(loginUser.pending, (state) => {
         state.loading = true;
       })
