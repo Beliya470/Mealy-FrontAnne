@@ -22,7 +22,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///beliya23'
 # 'postgresql://beliya470:Jelly360@localhost/beliya470'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'super_secret_key'
-app.config['JWT_SECRET_KEY'] = 'jwt_secret_key'
+app.config['JWT_SECRET_KEY'] = 'super_secret_key'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)  # Set access token to expire in 1 hour
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)  # Set refresh token to expire in 30 days
 
@@ -127,7 +127,7 @@ def register():
         db.session.commit()
         return redirect(url_for('login_user')), 201
 
-@app.route('/api/users/me', methods=['GET'])
+@app.route('/users/me', methods=['GET'])
 @jwt_required
 def get_user_details():
     current_user_id = get_jwt_identity()
@@ -155,7 +155,9 @@ def login_admin():
 
     # Create JWT tokens
     try:
-        access_token = create_access_token(identity=admin.id, user_claims={"role": "admin"})
+        
+        access_token = create_access_token(identity=admin.id, user_claims={"role": "admin", "admin_id": admin.id})
+
         refresh_token = create_refresh_token(identity=admin.id)
         
         # Make sure tokens are in the correct JWT format

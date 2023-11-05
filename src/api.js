@@ -65,7 +65,7 @@ export const fetchAdmins = () => API.get('/admins');
 export const fetchAdmin = (id) => API.get(`/admins/${id}`);
 
 // Admin creating a meal
-export const createMeal = (mealData) => API.post('/meals', mealData);
+export const createMeal = (formData) => API.post('/meals', formData);
 
 // Admin updating a meal
 export const updateMeal = (id, updatedMealData) => API.put(`/meals/${id}`, updatedMealData);

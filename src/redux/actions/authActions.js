@@ -96,7 +96,7 @@ export const getUserDetails = () => {
   return async (dispatch) => {
     try {
       const authToken = getToken('authToken');
-      const response = await axiosInstance.get('http://localhost:5000/api/users/me', {
+      const response = await axiosInstance.get('/users/me', {
         headers: {
           'Authorization': 'Bearer ' + authToken
         }
@@ -108,6 +108,9 @@ export const getUserDetails = () => {
       });
     } catch (error) {
       console.log("Fetching user details error:", error.response?.data);
+      if (error.response?.status === 422) {
+        // Handle 422 error here
+      }
       dispatch({
         type: 'FETCH_USER_DETAILS_FAIL',
         payload: error.response?.data

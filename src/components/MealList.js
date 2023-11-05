@@ -12,17 +12,23 @@ const MealList = () => {
   const fetchMeals = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      if(token) {
+      if (token) {
         const decodedToken = jwtDecode(token); // Decode the token to get the payload
         setFormData(formData => ({ ...formData, admin_id: decodedToken.admin_id })); // Set the admin_id in the formData
       }
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      const response = await axiosInstance.get('http://localhost:5000/meals', config);
-      setMeals(response.data.meals);
+      const response = await axiosInstance.get('/meals', config);
+      if (response && response.data) {
+        setMeals(response.data.meal_options);
+      } else {
+        setError("Error fetching meals");
+      }
     } catch (error) {
-      setError("Error fetching meals");
+      console.error("Error in fetchMeals:", error);
+      setError(`Error fetching meals: ${error.message}`);
     }
   };
+  
 
   const addMeal = async () => {
     try {
