@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token, create_refresh_token,
-    get_jwt_identity
+    get_jwt_identity, get_jwt_claims, decode_token
 )
 import json as _json
 from flask_migrate import Migrate
@@ -21,8 +21,8 @@ CORS(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///beliya23'
 # 'postgresql://beliya470:Jelly360@localhost/beliya470'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = 'super_secret_key'
-app.config['JWT_SECRET_KEY'] = 'super_secret_key'
+app.config['SECRET_KEY'] = 'your-256-bit-secret'
+app.config['JWT_SECRET_KEY'] = 'your-256-bit-secret'
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)  # Set access token to expire in 1 hour
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = timedelta(days=30)  # Set refresh token to expire in 30 days
 
@@ -223,34 +223,91 @@ def refresh():
     return jsonify({"access_token": access_token}), 200
 
 
-@app.route('/meals', methods=['GET'])
+# @app.route('/meals', methods=['GET'])
+# @jwt_required
+# def get_meal_options():
+#     meal_options = Meal.query.all()
+#     meal_options_list = []
+
+#     for meal_option in meal_options:
+#         meal_option_dict = {
+#             'id': meal_option.id,
+#             'name': meal_option.name,
+#             'description': meal_option.description,
+#             'price': meal_option.price,
+#             'image_url': meal_option.image_url,
+#             'admin_id': meal_option.admin_id,
+#             # Add other meal attributes you want to include in the response
+#         }
+#         meal_options_list.append(meal_option_dict)
+
+#     return jsonify({"meal_options": meal_options_list})
+@app.route('/verify-token', methods=['POST'])
+def verify_token():
+    encoded_token = request.get_json().get('token', None)
+    
+    if encoded_token:
+        try:
+            decoded_token = decode_token(encoded_token)  # replace encoded_token with your actual token
+            return jsonify(decoded_token), 200
+        except Exception as e:
+            return jsonify({"error": "An error occurred while decoding the token:", "message": str(e)}), 400
+    else:
+        return jsonify({"error": "No token provided"}), 400
+    
+@app.route('/meals', methods=['GET', 'OPTIONS'])  # Add 'OPTIONS' to the methods
 @jwt_required
-def get_meal_options():
-    meal_options = Meal.query.all()
-    meal_options_list = []
+def get_meals():
+    claims = get_jwt_claims()
 
-    for meal_option in meal_options:
-        meal_option_dict = {
-            'id': meal_option.id,
-            'name': meal_option.name,
-            'description': meal_option.description,
-            'price': meal_option.price,
-            'image_url': meal_option.image_url,
-            'admin_id': meal_option.admin_id,
-            # Add other meal attributes you want to include in the response
-        }
-        meal_options_list.append(meal_option_dict)
+    if request.method == 'OPTIONS':
+        # You can use this space to add any specific headers you want for OPTIONS requests
+        response = app.make_default_options_response()
+    else:
+        # Your GET request handling as before
+        meal_options = Meal.query.all()
+        meal_options_list = []
 
-    return jsonify({"meal_options": meal_options_list})
+        if not meal_options:
+            return jsonify({"message": "No meals available"}), 404
 
+        for meal_option in meal_options:
+            meal_option_dict = {
+                'id': meal_option.id,
+                'name': meal_option.name,
+                'description': meal_option.description,
+                'price': meal_option.price,
+                'image_url': meal_option.image_url,
+                'admin_id': meal_option.admin_id,
+            }
+            meal_options_list.append(meal_option_dict)
+
+        response = jsonify({"meal_options": meal_options_list})
+
+    # Include the necessary CORS headers in the response for OPTIONS requests
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    
+    return response
+
+
+# @app.route('/meals', methods=['POST'])
+# @jwt_required
+# def create_meal_option():
+#     current_user = get_jwt_identity()
 @app.route('/meals', methods=['POST'])
 @jwt_required
 def create_meal_option():
-    current_user = get_jwt_identity()
+    claims = get_jwt_claims()
+    current_user_id = get_jwt_identity()
+    admin_id = claims['admin_id'] if 'admin_id' in claims else None
 
+    if not admin_id:
+        return jsonify({"message": "Admin ID not found in token"}), 404
     # Check if the 'role' key exists and if the user's role is 'admin' to proceed
-    if "role" not in current_user or current_user["role"] != "admin":
-        return jsonify({"message": "Access denied"}), 403
+    # if "role" not in current_user or current_user["role"] != "admin":
+    #     return jsonify({"message": "Access denied"}), 403
 
     meal_data = request.json
     meal_name = meal_data.get('name')
@@ -311,6 +368,38 @@ def delete_meal_option(meal_option_id):
         return jsonify({"message": "Meal option deleted successfully"})
     else:
         return jsonify({"message": "Meal option not found"}), 404
+
+
+@app.route('/menu', methods=['GET'])
+@jwt_required
+def get_todays_menu():
+    print("Accessing /menu route")
+    # Fetch today's menu
+    today = date.today()
+    menu = Menu.query.filter_by(day=today).first()
+
+    # If there is no menu for today, return an empty response
+    if not menu:
+        return jsonify({"message": "No menu available for today"}), 404
+    
+    # Get the meals associated with today's menu
+    menu_meals = MenuMeals.query.filter_by(menu_id=menu.id).all()
+    meal_ids = [menu_meal.meal_id for menu_meal in menu_meals]
+    meals = Meal.query.filter(Meal.id.in_(meal_ids)).all()
+
+    # Prepare response
+    response = {
+        "menu": {
+            "day": str(menu.day),
+            "meals": [{"id": meal.id, "name": meal.name, "price": meal.price, "description": meal.description} for meal in meals]
+        }
+    }
+
+    return jsonify(response), 200
+
+{
+    "token": "YOUR_JWT_TOKEN"
+}
 
 
 if __name__ == "__main__":
